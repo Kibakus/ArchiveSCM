@@ -1,0 +1,79 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>org.jenkins-ci.plugins</groupId>
+        <artifactId>plugin</artifactId>
+        <version>4.77</version>
+        <relativePath />
+    </parent>
+
+    <artifactId>ArchiveSCM</artifactId>
+    <version>1.0</version>
+    <packaging>hpi</packaging>
+
+    <name>Archive SCM plugin</name>
+    <description>Integrates Jenkins with Archive SCM</description>
+    <url>https://github.com/Kibakus/ArchiveSCM</url>
+    <licenses>
+        <license>
+            <name>GNU Lesser General Public License v3.0</name>
+            <url>https://www.gnu.org/licenses/lgpl-3.0.html</url>
+            <distribution>repo,manual</distribution>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <id>Kibakus</id>
+            <name>Denis Gabdulyanov</name>
+            <email>den01246@gmail.com</email>
+            <roles>
+                <role>developer</role>
+                <role>maintainer</role>
+            </roles>
+            <timezone>+5</timezone>
+        </developer>
+    </developers>
+
+    <properties>
+        <jenkins.version>2.401.3</jenkins.version>
+    </properties>
+
+    <repositories>
+        <repository>
+            <id>repo.jenkins-ci.org</id>
+            <url>https://repo.jenkins-ci.org/public/</url>
+        </repository>
+    </repositories>
+    <pluginRepositories>
+        <pluginRepository>
+            <id>repo.jenkins-ci.org</id>
+            <url>https://repo.jenkins-ci.org/public/</url>
+        </pluginRepository>
+    </pluginRepositories>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>io.jenkins.tools.bom</groupId>
+                <artifactId>bom-2.401.x</artifactId>
+                <version>2745.vc7b_fe4c876fa_</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+        <!--Credential Binding Plugin-->
+        <dependency>
+            <groupId>org.jenkins-ci.plugins</groupId>
+            <artifactId>credentials</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.jenkins-ci.plugins</groupId>
+            <artifactId>credentials-binding</artifactId>
+        </dependency>
+    </dependencies>
+
+</project>
