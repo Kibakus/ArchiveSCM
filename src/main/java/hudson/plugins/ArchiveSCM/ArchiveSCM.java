@@ -57,7 +57,6 @@ import java.time.Duration;
 
 import java.util.Base64;
 import java.util.Collections;
-import java.util.Objects;
 
 import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -72,12 +71,18 @@ import org.kohsuke.stapler.verb.POST;
 public class ArchiveSCM extends SCM {
 
     private boolean ClearWorkspace;
+    private boolean DeleteDistributive;
     private String ScmUrl;
     private String CredentialsId;
 
     @Exported
     public boolean isClearWorkspace() {
         return ClearWorkspace;
+    }
+
+    @Exported
+    public boolean isDeleteDistributive() {
+        return DeleteDistributive;
     }
 
     @Exported
@@ -101,6 +106,8 @@ public class ArchiveSCM extends SCM {
     public void setClearWorkspace(final boolean  ClearWorkspace) {
         this.ClearWorkspace = ClearWorkspace;
     }
+    @DataBoundSetter
+    public void setDeleteDistributive(final boolean  DeleteDistributive) { this.DeleteDistributive = DeleteDistributive;}
 
     @DataBoundSetter
     public void setScmUrl(@CheckForNull final String ScmUrl) {
@@ -115,9 +122,9 @@ public class ArchiveSCM extends SCM {
     @Override
     public void checkout(@NonNull Run<?, ?> build, @NonNull Launcher launcher, @NonNull FilePath workspace, @NonNull TaskListener listener, File changelogFile, SCMRevisionState baseline)
             throws IOException, InterruptedException {
-        listener.getLogger().append("Checkout Start: " + new Timestamp(System.currentTimeMillis()) + "\n");
+        listener.getLogger().append("[ArchiveSCM] Checkout Start: " + new Timestamp(System.currentTimeMillis()) + "\n");
         if (ClearWorkspace) {
-            listener.getLogger().append("ClearWorkspace\n");
+            listener.getLogger().append("[ArchiveSCM] ClearWorkspace\n");
             workspace.deleteContents();
         }
         try {
@@ -125,21 +132,22 @@ public class ArchiveSCM extends SCM {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-        listener.getLogger().append("Checkout end: " + new Timestamp(System.currentTimeMillis()) + "\n");
+        listener.getLogger().append("[ArchiveSCM] Checkout end: " + new Timestamp(System.currentTimeMillis()) + "\n");
     }
 
     public void downloadDistr(@NonNull Run<?, ?> build, @NonNull FilePath workspace, @NonNull TaskListener listener, String username, String password) throws Exception {
-        listener.getLogger().append("Workspace: " + workspace + "\n");
+        listener.getLogger().append("[ArchiveSCM] Workspace: " + workspace + "\n");
         String urlString = ScmUrl;
         File FileSubDirDistributive;
         String filename = new File(urlString).getName();
         Jenkins instance = Jenkins.getInstanceOrNull();
         if (instance != null) {
             File ParentFolder = new File(instance.getBuildDirFor(build.getParent()).getParent());
+            listener.getLogger().append("[ArchiveSCM] BuildDirFolder:" + ParentFolder + "\n");
             FileSubDirDistributive = new File(ParentFolder, filename);
-            listener.getLogger().append("Check MD5\n");
+            listener.getLogger().append("[ArchiveSCM] Check MD5 file\n");
             if (checkFileDistrMD5(ParentFolder, FileSubDirDistributive, urlString, workspace, listener, username, password)) return;
-            listener.getLogger().append("Download...\n");
+            listener.getLogger().append("[ArchiveSCM] Download: " + urlString + "\n");
             downloadUsingNIO(urlString, FileSubDirDistributive, username, password);
             new FilePath(FileSubDirDistributive).unzip(workspace);
         }
@@ -151,7 +159,10 @@ public class ArchiveSCM extends SCM {
         while(true) {
             try {
                 if (FileSubDirDistributive.exists()) {
-                    deleteOldDistr(ParentFolder, FileSubDirDistributive, listener);
+                    if (DeleteDistributive) {
+                        listener.getLogger().append("[ArchiveSCM] DeleteDistributive True\n");
+                        deleteOldDistr(ParentFolder, FileSubDirDistributive, listener);
+                    }
                     HttpClient client = HttpClient.newHttpClient();
                     HttpRequest request = HttpRequest.newBuilder()
                             .uri(URI.create(urlString + ".md5"))
@@ -162,26 +173,26 @@ public class ArchiveSCM extends SCM {
                     HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
                     if (response.statusCode() == 200) {
                         if (new FilePath(FileSubDirDistributive).digest().equals(response.body())) {
-                            listener.getLogger().append("Good cache: ").append(String.valueOf(FileSubDirDistributive)).append("\n");
+                            listener.getLogger().append("[ArchiveSCM] Good match cache: ").append(String.valueOf(FileSubDirDistributive)).append("\n");
                             new FilePath(FileSubDirDistributive).unzip(workspace);
                             return true;
                         } else {
-                            listener.getLogger().append("Miss cache: " + FileSubDirDistributive + "\n");
+                            listener.getLogger().append("[ArchiveSCM] Bad match cache: " + FileSubDirDistributive + "\n");
                             return false;
                         }
                     }else{
-                        listener.getLogger().append("Function CheckFileDistrMD5 " + urlString + " statusCode: " + response.statusCode() + "\n");
+                        listener.getLogger().append("[ArchiveSCM] Function CheckFileDistrMD5 " + urlString + " statusCode: " + response.statusCode() + "\n");
                         return true;
                     }
                 }
                 else{
-                    listener.getLogger().append("No found cache: " + FileSubDirDistributive + "\n");
+                    listener.getLogger().append("[ArchiveSCM] No found cache: " + FileSubDirDistributive + "\n");
                     return false;
                 }
             } catch (IOException e) {
                 if (count == 0) listener.error("IOException: function CheckFileDistrMD5 " + urlString + "\n" + e.getMessage()+ "\n");
                 if (++count == maxTries) {
-                    listener.getLogger().append("Execute cache file: " + FileSubDirDistributive + "\n");
+                    listener.getLogger().append("[ArchiveSCM] Execute cache file: " + FileSubDirDistributive + "\n");
                     new FilePath(FileSubDirDistributive).unzip(workspace);
                     return true;
                 }
@@ -189,15 +200,15 @@ public class ArchiveSCM extends SCM {
         }
     }
 
-    public void deleteOldDistr(File ParentFolder, File filename,TaskListener listener) {
+    public void deleteOldDistr(File ParentFolder, File filename, TaskListener listener) {
         File[] files = ParentFolder.listFiles((dir, name) -> name.toLowerCase().endsWith(".zip"));
         if (files != null) {
             for (File file : files) {
                 if (!file.getName().equalsIgnoreCase(filename.getName())) {
                     if (!file.delete()) {
-                        listener.getLogger().append("Failed to delete file: " + file.getName() + "\n");
+                        listener.getLogger().append("[ArchiveSCM] Failed to delete file: " + file.getName() + "\n");
                     }else {
-                        listener.getLogger().append("Delete file: " + file.getName() + "\n");
+                        listener.getLogger().append("[ArchiveSCM] Delete old file: " + file.getName() + "\n");
                     }
                 }
             }

@@ -10,6 +10,9 @@
   <f:entry title="Clear workspace" field="clearWorkspace">
     <f:checkbox default="true"/>
   </f:entry>
+  <f:entry title="Delete old distributive" field="deleteDistributive">
+    <f:checkbox default="false"/>
+  </f:entry>
   <f:entry title="URL" field="ScmUrl">
     <f:textbox/>
   </f:entry>
